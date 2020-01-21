@@ -1,0 +1,9 @@
+.card_widget.card-announcement
+  .card-content
+    .item_headline
+      i.fa.fa-bullhorn.card-announcement-animation(aria-hidden="true")
+      span= _p('aside.card_announcement')
+    .post_data
+      .data-item.is_center
+        img.lazyload.avatar_img(src=url_for(theme.announcement.imageUrl) onerror=`onerror=null`)
+    .announcement_content= theme.announcement.content

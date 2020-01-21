@@ -1,0 +1,24 @@
+class:
+  class_name: 友情鏈接
+  link_list:
+    1:
+      name: liuxingsata
+      link: http://www.wangzhongmei.com/
+      avatar: https://i.loli.net/2019/09/17/jVhUGBHwyuZlqNr.png
+      descr: 总有一些值得相遇的人， 总有一些值得尝试的事
+    
+
+# class2:
+#   class_name: 無法訪問
+#   link_list:
+#     1:    
+#       name: Aaron’s Blog
+#       link: https://aoaoao.me/
+#       avatar: https://v2ex.assets.uxengine.net/gravatar/3800f67051ba9440ffecf2c3e8734933?s=128&d=mm
+#       descr: 00後/大一狗/火車控/SE@CQU/業餘無限墊入門ing
+#     2: 
+#       name: bboysoul
+#       link: https://www.bboysoul.com/
+#       avatar: https://www.bboysoul.com/img/blog/head.png
+#       descr: bboysoul
+

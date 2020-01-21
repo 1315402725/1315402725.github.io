@@ -1,0 +1,333 @@
+[data-theme="dark"] 
+  body
+    color: alpha(#FFFFFF,0.6) 
+    background-color: darken(#121212,2)
+
+  ::-webkit-scrollbar-thumb
+    background: lighten(#121212,5)
+
+  #sidebar
+    background: #121212
+    box-shadow: -0.25rem 0 0.25rem #121212
+
+  if hexo-config("local_search") && hexo-config("local_search.enable")
+    #local-search
+      background: #121212  
+      .local-search-box--input  
+        background: #121212
+        color: alpha(#FFFFFF,0.6)
+          
+      .search-result-title
+        color: alpha(#FFFFFF,0.6)
+
+  if hexo-config("algolia_search.enable")
+    #algolia-search
+      background: #121212
+      .ais-search-box--input
+        background: #121212
+        color: alpha(#FFFFFF,0.6)
+
+      #algolia-search-results
+        .algolia-hit-item-link
+          color: alpha(#FFFFFF,0.6)
+
+  .article-container code
+    background: #2c2c2c
+    // color: alpha(#FFFFFF,0.6)
+          
+  .recent-posts
+    .recent-post-item
+      background: #121212 !important
+    
+    .article-title
+      color: alpha(#FFFFFF,0.8) !important
+      
+  #page-header
+    &.fixed
+      background: #121212
+      box-shadow: 0 5px 6px -5px rgba(133,133,133,0) 
+
+      .toggle-menu, 
+      #site-name,
+      a
+        color: alpha(#FFFFFF,0.8) 
+
+    .menus_item_child
+      background-color: #121212 !important
+
+      &:before
+        border-color: transparent transparent #121212 !important
+
+      li
+        a
+          color: alpha(#FFFFFF,0.6)
+
+              
+  blockquote
+    color: alpha(#FFFFFF,0.6)
+    background-color: lighten(#121212,10)
+
+  hr
+      background: 0
+      border: 2px dashed alpha(#FFFFFF,0.3)
+      &:before
+        color: alpha(#FFFFFF,0.6)
+
+  .post-meta__tags
+    background: 0
+    border: 1px solid alpha(#FFFFFF,0.6)
+    color: alpha(#FFFFFF,0.6)
+
+    &:hover
+      background: darken(#FFFFFF,60)
+
+  // 文章版權
+  .post-copyright
+    border: 1px solid alpha(#FFFFFF,0.6)
+    .post-copyright-meta
+      color: alpha(#FFFFFF,0.8)
+    .post-copyright-info
+      color: alpha(#FFFFFF,0.6)
+  
+  //代碼框
+  .article-container pre
+    background-color: darken(#121212,3)
+
+  .highlight-tools
+    background: lighten(#121212,3) 
+
+  .article-container .highlight:not(.js-file-line-container)
+    background-color: lighten(#121212, 2)
+
+    .code pre
+      background-color: lighten(#121212, 2)  
+
+    .gutter pre
+      background: lighten(#121212, 3) 
+    
+    table
+      .copy-notice
+        background: lighten(#121212, 3)  
+          
+  .copy-notice
+    background: lighten(#121212, 3)  
+
+  //音樂播放器
+  .aplayer
+    color: #000000 
+    filter: brightness(0.7)
+
+  //右下角按鈕
+  .translate_chn_to_cht,
+  .darkmode,
+  #readmode,
+  #to_comment,
+  #font_plus,
+  #font_minus,
+  #rightside_config,
+  #go-up,
+  #mobile-toc-button
+    background-color: lighten(#121212,5) !important
+    color: alpha(#FFFFFF,0.6) !important
+
+    &:hover
+      background: lighten(#121212,20) !important
+    
+  // 打賞按鈕
+  .post-reward 
+    .reward-button
+      background-color: lighten(#121212,10) !important    
+      &:hover
+        background: lighten(#121212,20) !important
+
+    .reward-all
+      background-color: lighten(#121212,10) !important       
+      &:after
+        border-top: 13px solid lighten(#121212,10) !important
+
+  .md-links-item:before,
+  .aside_category_list:hover,
+  .archive-list-item:hover,
+  #bookmark-it
+    background-color: lighten(#121212,10) !important
+
+  img,iframe,.gist
+    filter: brightness(0.7)
+
+  //側邊欄
+  #aside_content
+    .card_widget
+      background:#121212 !important
+    .headline,
+    .length_num,
+    .aside_post_title,
+    .aside_category_list_link,
+    .archive-list-link,
+    .social-icon
+      color: alpha(#FFFFFF,0.6) !important
+
+    .bookmark--animated:before
+      background: lighten(#121212,20) !important
+
+  #archive,
+  .tag-cloud,
+  #tag,
+  .category-content,
+  #category,
+  #page,
+  .flink,
+  .layout_post
+    background: #121212
+
+  //頭部
+  #nav,
+  #top-container
+    &::before
+      content: ""
+      position: absolute
+      top: 0
+      bottom: 0
+      left: 0
+      right: 0
+      background-color: alpha($dark-black,0.7)
+
+  #nav span,
+  #nav i,
+  #page-header a,
+  #page-header .toggle-menu,
+  #top-container #post-meta,
+  #top-container a,
+  #footer-wrap,
+  #footer-wrap a   
+    color: alpha(#FFFFFF,0.6)
+  
+  .posttitle,
+  h1, h2, h3, h4, h5, h6
+    color: alpha(#FFFFFF,0.8)
+
+  .recent-posts .post-meta__date,
+  .recent-posts .article-meta,
+  .recent-posts .article-meta__categories,
+  .post-reward .reward-button,
+  .fa-clipboard,
+  .gutter pre,
+  #bookmark-it,
+  .copy-notice,
+  .md-links-item a,
+  .category-list-link,
+  .relatedPosts_date,
+  .prev-post .label,
+  .next-post .label
+    color: alpha(#FFFFFF,0.6) !important
+
+  .prev_info,
+  .next_info,
+  .relatedPosts_title
+    color: alpha(#FFFFFF,0.8) !important
+
+  //時間軸界面
+  .article-sort-item__title
+    color: alpha(#FFFFFF,0.6)
+
+    &:hover
+      color: #49b1f5
+
+  //網站背景，footer背景
+  #web_bg[data-type=color],
+  #footer[data-type=color]
+    background: darken(#121212,2)
+
+  #web_bg[data-type=photo]:before,
+  #footer[data-type=photo]:before
+    background-color: alpha($dark-black,0.7)
+
+  // 手機 MENU,TOC
+  #mobile-sidebar
+    #mobile-sidebar-menus
+      background: #121212
+
+      .headline
+        color: alpha(#FFFFFF,0.6) !important
+      
+      .length_num
+        color: alpha(#FFFFFF,0.8) !important
+
+      a
+        color: alpha(#FFFFFF,0.6) !important
+
+    #mobile-sidebar-toc
+      background: #121212
+      a
+        color: alpha(#FFFFFF,0.6) !important
+
+  //note
+  if hexo-config("note.style") == 'modern'
+    .note
+      filter: brightness(0.7)
+
+  if hexo-config("note.style") == 'flat'
+    .note
+      color: #4c4948
+      filter: brightness(0.7)
+
+
+  
+  // 第三方
+  // 插件 hexo-blog-encrypt
+  #hexo-blog-encrypt
+    label,input
+      color: alpha(#FFFFFF,0.6) !important
+    input
+      background-color: #121212
+
+  if hexo-config('gitalk') && hexo-config('gitalk.enable')
+    #gitalk-container
+      .gt-header-textarea,
+      .gt-header-preview,
+      .gt-comment-content,
+      button,
+      .gt-popup
+        filter: brightness(0.7)
+
+      svg
+        fill: alpha(#FFFFFF,0.6) !important
+
+  if hexo-config('valine') && hexo-config('valine.enable')
+    // 評論
+    #vcomment
+      p,a,textarea,.vemoji-btn,.vpreview-btn,input,path,.vcount,.vnum,.vtime,.vsys,.vsys,.vnick
+        color: alpha(#FFFFFF,0.6) !important
+      
+      .vsys
+        background: rgb(97, 106, 107) !important
+
+      .vbtn
+        background: rgb(45, 48, 53) !important      
+        color: alpha(#FFFFFF,0.6) !important
+        border: 1px solid alpha(#FFFFFF,0.6)
+      
+      .vwrap
+        border: 1px solid alpha(#FFFFFF,0.6)
+      
+      input
+        border-bottom: 1px dashed #616a6b
+      
+      .vh
+        border-bottom: 1px dashed  #616a6b
+      
+      pre
+        background-color: #121212
+        border: 1px solid alpha(#FFFFFF,0.6)
+
+        code
+          background: transparent
+      
+      code
+        background-color: #2c2c2c
+        color: alpha(#FFFFFF,0.6)
+      
+      .vcontent.expand:before
+        background: linear-gradient(180deg,hsla(0, 0%, 0%, 0),hsl(218, 8%, 19%))
+
+      .vcontent.expand:after
+        background: hsla(204, 5%, 22%, 1)
