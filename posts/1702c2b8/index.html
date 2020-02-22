@@ -1,0 +1,277 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>Mysql加锁处理分析 | 爱笑的k11</title><meta name="description" content="Mysql加锁处理分析"><meta name="keywords" content="mysql,锁"><meta name="author" content="爱笑的k11,1315402725@qq.com"><meta name="copyright" content="爱笑的k11"><meta name="format-detection" content="telephone=no"><link rel="shortcut icon" href="/img/favicon.ico"><link rel="preconnect" href="//cdn.jsdelivr.net"><link rel="manifest" href="/image/pwa/manifest.json"><meta name="theme-color" content="#fff"><meta name="msapplication-TileColor" content="#fff"><link rel="apple-touch-icon" sizes="180x180" href="/image/pwa/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="/image/pwa/32.png"><link rel="icon" type="image/png" sizes="16x16" href="/image/pwa/16.png"><link rel="mask-icon" href="/image/pwa/safari-pinned-tab.svg" color="#5bbad5"><meta name="google-site-verification" content="8smnQdp-tOaoh3wl9TFCHU8O1At4xv2ctBXnT5NdOKQ"><meta name="baidu-site-verification" content="NTCsvwtajo"><meta name="360-site-verification" content="0824c0302300bef4a3eb60103a168614"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Mysql加锁处理分析"><meta name="twitter:description" content="Mysql加锁处理分析"><meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/Photo/photo.jpg"><meta property="og:type" content="article"><meta property="og:title" content="Mysql加锁处理分析"><meta property="og:url" content="http://1315402725.github.io/posts/1702c2b8/"><meta property="og:site_name" content="爱笑的k11"><meta property="og:description" content="Mysql加锁处理分析"><meta property="og:image" content="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/Photo/photo.jpg"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script><script>const autoChangeMode = 'false'
+var t = Cookies.get("theme");
+if (autoChangeMode == '1'){
+const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+const isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+const isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+const hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+
+if (t === undefined){
+  if (isLightMode) activateLightMode()
+  else if (isDarkMode) activateDarkMode()
+  else if (isNotSpecified || hasNoSupport){
+    console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+    now = new Date();
+    hour = now.getHours();
+    isNight = hour < 6 || hour >= 18
+    isNight ? activateDarkMode() : activateLightMode()
+}
+} else if (t == 'light') activateLightMode()
+else activateDarkMode()
+
+
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode() 
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}</script><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/node-snackbar@0.1.15/dist/snackbar.min.css"><link rel="canonical" href="http://1315402725.github.io/posts/1702c2b8/"><link rel="next" title="从java的角度看reactor主从线程模型" href="http://1315402725.github.io/posts/f648507a/"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/instantsearch.js@2.1.1/dist/instantsearch.min.css"><script src="https://cdn.jsdelivr.net/npm/instantsearch.js@2.1.1/dist/instantsearch.min.js" defer></script><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script><script>(adsbygoogle = window.adsbygoogle || []).push({
+  google_ad_client: 'ca-pub-2526156577654907',
+  enable_page_level_ads: 'true'
+});</script><link rel="dns-prefetch" href="https://www.google-analytics.com"><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-120653953-1', 'auto');
+ga('send', 'pageview');
+</script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: {"appId":"MQZ721ZDX9","apiKey":"9cdd36321a60422a852e4c1d92312b98","indexName":"aixiaodek11","hits":{"per_page":6},"languages":{"input_placeholder":"搜索文章","hits_empty":"找不到您查询的内容:${query}","hits_stats":"找到 ${hits} 条结果，用时 ${time} 毫秒"}},
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"http://1315402725.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"简"},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  bookmark: {
+    title: 'Snackbar.bookmark.title',
+    message_prev: '按',
+    message_next: '键将本页加入书签'
+  },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: {"languages":{"author":"作者: 爱笑的k11","link":"链接: http://1315402725.github.io/posts/1702c2b8/","source":"来源: 爱笑的k11","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: {"bookmark":{"title":"Snackbar.bookmark.title","message_prev":"按","message_next":"键将本页加入书签"},"chs_to_cht":"你已切换为繁体","cht_to_chs":"你已切换为简体","day_to_night":"你已切换为深色模式","night_to_day":"你已切换为浅色模式","bgLight":"#49b1f5","bgDark":"#121212","position":"bottom-left"},
+  baiduPush: true,
+  isHome: false,
+  isPost: true
+  
+}</script><meta name="generator" content="Hexo 4.1.0"><link rel="alternate" href="/atom.xml" title="爱笑的k11" type="application/atom+xml">
+<style type="text/css">.post-ad{margin: 2rem 0!important}.ad_height{height: auto !important;display: block !important}</style></head><body><div id="header"> <div id="page-header"><span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">爱笑的k11</a></span><span class="toggle-menu pull_right close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span><span class="pull_right menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首頁</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 時間軸</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 標籤</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分類</span></a></div><div class="menus_item"><a class="site-page"><i class="fa-fw fa fa-heartbeat" aria-hidden="true"></i><span> 清單</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音樂</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> 電影</span></a></li><li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> 照片</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-coffee"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友鏈</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 關於</span></a></div></div></span><span class="pull_right" id="search_button"><a class="site-page social-icon search"><i class="fa fa-search fa-fw"></i><span> 搜索</span></a></span></div></div><div id="mobile-sidebar"><div id="menu_mask"></div><div id="mobile-sidebar-menus"><div class="mobile_author_icon"><img class="lazyload avatar_img" src="/image/avatar.jpeg" onerror="onerror=null;src='/img/friend_404.gif'"></div><div class="mobile_post_data"><div class="mobile_data_item is_center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div><div class="length_num">54</div></a></div></div><div class="mobile_data_item is_center">      <div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div><div class="length_num">16</div></a></div></div><div class="mobile_data_item is_center">     <div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div><div class="length_num">10</div></a></div></div></div><hr><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首頁</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 時間軸</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 標籤</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分類</span></a></div><div class="menus_item"><a class="site-page"><i class="fa-fw fa fa-heartbeat" aria-hidden="true"></i><span> 清單</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> 音樂</span></a></li><li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> 電影</span></a></li><li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> 照片</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-coffee"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友鏈</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 關於</span></a></div></div></div><div id="mobile-sidebar-toc"><div class="toc_mobile_headline">目录</div><div class="sidebar-toc__content"><ol class="toc_mobile_items"><li class="toc_mobile_items-item toc_mobile_items-level-2"><a class="toc_mobile_items-link" href="#背景"><span class="toc_mobile_items-number">1.</span> <span class="toc_mobile_items-text">背景</span></a><ol class="toc_mobile_items-child"><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#MVCC：Snapshot-Read-vs-Current-Read"><span class="toc_mobile_items-number">1.1.</span> <span class="toc_mobile_items-text">MVCC：Snapshot Read vs Current Read</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#Cluster-Index：聚簇索引"><span class="toc_mobile_items-number">1.2.</span> <span class="toc_mobile_items-text">Cluster Index：聚簇索引</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#2PL：Two-Phase-Locking"><span class="toc_mobile_items-number">1.3.</span> <span class="toc_mobile_items-text">2PL：Two-Phase Locking</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#Isolation-Level"><span class="toc_mobile_items-number">1.4.</span> <span class="toc_mobile_items-text">Isolation Level</span></a></li></ol></li><li class="toc_mobile_items-item toc_mobile_items-level-2"><a class="toc_mobile_items-link" href="#一条简单SQL的加锁实现分析"><span class="toc_mobile_items-number">2.</span> <span class="toc_mobile_items-text">一条简单SQL的加锁实现分析</span></a><ol class="toc_mobile_items-child"><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合一：id主键-RC"><span class="toc_mobile_items-number">2.1.</span> <span class="toc_mobile_items-text">组合一：id主键+RC</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合二：id唯一索引-RC"><span class="toc_mobile_items-number">2.2.</span> <span class="toc_mobile_items-text">组合二：id唯一索引+RC</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合三：id非唯一索引-RC"><span class="toc_mobile_items-number">2.3.</span> <span class="toc_mobile_items-text">组合三：id非唯一索引+RC</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合四：id无索引-RC"><span class="toc_mobile_items-number">2.4.</span> <span class="toc_mobile_items-text">组合四：id无索引+RC</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合五：id主键-RR"><span class="toc_mobile_items-number">2.5.</span> <span class="toc_mobile_items-text">组合五：id主键+RR</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合六：id唯一索引-RR"><span class="toc_mobile_items-number">2.6.</span> <span class="toc_mobile_items-text">组合六：id唯一索引+RR</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合七：id非唯一索引-RR"><span class="toc_mobile_items-number">2.7.</span> <span class="toc_mobile_items-text">组合七：id非唯一索引+RR</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合八：id无索引-RR"><span class="toc_mobile_items-number">2.8.</span> <span class="toc_mobile_items-text">组合八：id无索引+RR</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-3"><a class="toc_mobile_items-link" href="#组合九：Serializable"><span class="toc_mobile_items-number">2.9.</span> <span class="toc_mobile_items-text">组合九：Serializable</span></a></li></ol></li><li class="toc_mobile_items-item toc_mobile_items-level-2"><a class="toc_mobile_items-link" href="#一条复杂的-SQL"><span class="toc_mobile_items-number">3.</span> <span class="toc_mobile_items-text">一条复杂的 SQL</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-2"><a class="toc_mobile_items-link" href="#死锁原理与分析"><span class="toc_mobile_items-number">4.</span> <span class="toc_mobile_items-text">死锁原理与分析</span></a></li><li class="toc_mobile_items-item toc_mobile_items-level-2"><a class="toc_mobile_items-link" href="#总结"><span class="toc_mobile_items-number">5.</span> <span class="toc_mobile_items-text">总结</span></a></li></ol></div></div></div><div id="body-wrap"><i class="fa fa-arrow-right" id="toggle-sidebar" aria-hidden="true">     </i><div class="auto_open" id="sidebar"><div class="sidebar-toc"><div class="sidebar-toc__title">目录</div><div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar">     </div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#背景"><span class="toc-number">1.</span> <span class="toc-text">背景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#MVCC：Snapshot-Read-vs-Current-Read"><span class="toc-number">1.1.</span> <span class="toc-text">MVCC：Snapshot Read vs Current Read</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Cluster-Index：聚簇索引"><span class="toc-number">1.2.</span> <span class="toc-text">Cluster Index：聚簇索引</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2PL：Two-Phase-Locking"><span class="toc-number">1.3.</span> <span class="toc-text">2PL：Two-Phase Locking</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Isolation-Level"><span class="toc-number">1.4.</span> <span class="toc-text">Isolation Level</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#一条简单SQL的加锁实现分析"><span class="toc-number">2.</span> <span class="toc-text">一条简单SQL的加锁实现分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#组合一：id主键-RC"><span class="toc-number">2.1.</span> <span class="toc-text">组合一：id主键+RC</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合二：id唯一索引-RC"><span class="toc-number">2.2.</span> <span class="toc-text">组合二：id唯一索引+RC</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合三：id非唯一索引-RC"><span class="toc-number">2.3.</span> <span class="toc-text">组合三：id非唯一索引+RC</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合四：id无索引-RC"><span class="toc-number">2.4.</span> <span class="toc-text">组合四：id无索引+RC</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合五：id主键-RR"><span class="toc-number">2.5.</span> <span class="toc-text">组合五：id主键+RR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合六：id唯一索引-RR"><span class="toc-number">2.6.</span> <span class="toc-text">组合六：id唯一索引+RR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合七：id非唯一索引-RR"><span class="toc-number">2.7.</span> <span class="toc-text">组合七：id非唯一索引+RR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合八：id无索引-RR"><span class="toc-number">2.8.</span> <span class="toc-text">组合八：id无索引+RR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#组合九：Serializable"><span class="toc-number">2.9.</span> <span class="toc-text">组合九：Serializable</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#一条复杂的-SQL"><span class="toc-number">3.</span> <span class="toc-text">一条复杂的 SQL</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#死锁原理与分析"><span class="toc-number">4.</span> <span class="toc-text">死锁原理与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">5.</span> <span class="toc-text">总结</span></a></li></ol></div></div></div><div id="content-outer"><div id="top-container" style="background-image: url(https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/Photo/photo.jpg)"><div id="post-info"><div id="post-title"><div class="posttitle">Mysql加锁处理分析</div></div><div id="post-meta"><time class="post-meta__date"><i class="fa fa-calendar fa-fw" aria-hidden="true"></i> 发表于 2020-02-22<span class="post-meta__separator">|</span><i class="fa fa-history fa-fw" aria-hidden="true"></i> 更新于 2020-02-22</time><span class="post-meta__separator mobile_hidden">|</span><span class="mobile_hidden"><i class="fa fa-inbox post-meta__icon fa-fw" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/mysql/">mysql</a></span><div class="post-meta-wordcount"><i class="fa fa-file-word-o post-meta__icon fa-fw" aria-hidden="true"></i><span>字数总计:</span><span class="word-count">7.2k</span><span class="post-meta__separator">|</span><i class="fa fa-clock-o post-meta__icon fa-fw" aria-hidden="true"></i><span>阅读时长: 23 分钟</span><div class="post-meta-pv-cv"><span class="post-meta__separator">|</span><i class="fa fa-eye post-meta__icon fa-fw" aria-hidden="true">       </i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span><span class="post-meta__separator">|</span><i class="fa fa-comments-o post-meta__icon fa-fw" aria-hidden="true"></i><span>评论数:</span><a href="/posts/1702c2b8/#post-comment" itemprop="discussionUrl"><span class="valine-comment-count comment-count" data-xid="/posts/1702c2b8/" itemprop="commentCount"></span></a></div></div></div></div></div><div class="layout layout_post" id="content-inner">   <article id="post"><div class="article-container" id="post-content"><p><strong>文章来自何凳成博客</strong></p>
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>MySQL/InnoDB 的加锁分析，一直是一个比较困难的话题。我在工作过程中，经常会有同事<br>咨询这方面的问题。同时，微博上也经常会收到MySQL 锁相关的私信，让我帮助解决一些<br>死锁的问题。本文，准备就MySQL/InnoDB 的加锁问题，展开较为深入的分析与讨论，主要<br>是介绍一种思路，运用此思路，拿到任何一条SQL 语句，就能完整的分析出这条语句会加<br>什么锁？会有什么样的使用风险？甚至是分析线上的一个死锁场景，了解死锁产生的原因。</p>
+<p><strong>注</strong>：MySQL 是一个支持插件式存储引擎的数据库系统。本文下面的所有介绍，都是基于InnoDB 存储引擎，其他引擎的表现，会有较大的区别。</p>
+<h3 id="MVCC：Snapshot-Read-vs-Current-Read"><a href="#MVCC：Snapshot-Read-vs-Current-Read" class="headerlink" title="MVCC：Snapshot Read vs Current Read"></a>MVCC：Snapshot Read vs Current Read</h3><p>MySQL InnoDB 存储引擎，实现的是基于多版本的并发控制协议——MVCC <a href="http://en.wikipedia.org/wiki/Multiversion_concurrency_control" target="_blank" rel="external nofollow noreferrer noopener">(Multi-Version</a></p>
+<p><a href="http://en.wikipedia.org/wiki/Multiversion_concurrency_control" target="_blank" rel="external nofollow noreferrer noopener">Concurrency Control)</a> (注：与MVCC相对的，是基于锁的并发控制，Lock-Based ConcurrencyControl)。MVCC 最大的好处，相信也是耳熟能详：读不加锁，读写不冲突。在读多些少的OLTP 应用中，读写不冲突是非常重要的，极大的增加了系统的并发性能，这也是为什么现阶段，几乎所有的 RDBMS，都支持了 MVCC。</p>
+<p>在 MVCC 并发控制中，读操作可以分成两类：快照读 (snapshot read)与当前读 (current read)。</p>
+<p>快照读，读取的是记录的可见版本 (有可能是历史版本)，不用加锁。当前读，读取的是记录的最新版本，并且，当前读返回的记录，都会加上锁，保证其他事务不会再并发修改这条记录。</p>
+<p>在一个支持MVCC 并发控制的系统中，哪些读操作是快照读？哪些操作又是当前读呢？以</p>
+<p>MySQL InnoDB 为例：</p>
+<p>Ø 快照读：简单的select 操作，属于快照读，不加锁。(当然，也有例外，下面会分析)</p>
+<p> select * from table where ?;</p>
+<p>Ø 当前读：特殊的读操作，插入/更新/删除操作，属于当前读，需要加锁。</p>
+<p> select * from table where ? lock in share mode;</p>
+<p> select * from table where ? for update;</p>
+<p> insert into table values (…);</p>
+<p> update table set ? where ?;</p>
+<p> delete from table where ?;</p>
+<p>所有以上的语句，都属于当前读，读取记录的最新版本。并且，读取之后，还需要保证其他并发事务不能修改当前记录，对读取记录加锁。其中，除了第一条语句，对读取记录加S 锁 (共享锁)外，其他的操作，都加的是X 锁 (排它锁)。</p>
+<p>为什么将 插入/更新/删除 操作，都归为当前读？可以看看下面这个 更新 操作，在数据库中的执行流程：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian1.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian1.png" class="lazyload"></a></p>
+<p>从图中，可以看到，一个Update 操作的具体流程。当Update SQL 被发给MySQL 后，MySQL</p>
+<p>Server 会根据where 条件，读取第一条满足条件的记录，然后InnoDB 引擎会将第一条记录</p>
+<p>返回，并加锁 (current read)。待MySQL Server 收到这条加锁的记录之后，会再发起一个</p>
+<p>Update 请求，更新这条记录。一条记录操作完成，再读取下一条记录，直至没有满足条件的记录为止。因此，Update 操作内部，就包含了一个当前读。同理，Delete 操作也一样。Insert操作会稍微有些不同，简单来说，就是Insert 操作可能会触发Unique Key 的冲突检查，也会进行一个当前读。</p>
+<p><strong>注</strong>：根据上图的交互，针对一条当前读的SQL 语句，InnoDB 与MySQL Server 的交互，是一</p>
+<p>条一条进行的，因此，加锁也是一条一条进行的。先对一条满足条件的记录加锁，返回给</p>
+<p>MySQL Server，做一些DML 操作；然后在读取下一条加锁，直至读取完毕。</p>
+<h3 id="Cluster-Index：聚簇索引"><a href="#Cluster-Index：聚簇索引" class="headerlink" title="Cluster Index：聚簇索引"></a>Cluster Index：聚簇索引</h3><p>InnoDB 存储引擎的数据组织方式，是聚簇索引表：完整的记录，存储在主键索引中，通过</p>
+<p>主键索引，就可以获取记录所有的列。关于聚簇索引表的组织方式，可以参考MySQL 的官</p>
+<p><a href="http://dev.mysql.com/doc/refman/5.0/en/innodb-index-types.html" target="_blank" rel="external nofollow noreferrer noopener"></a>方文档：<a href="http://dev.mysql.com/doc/refman/5.0/en/innodb-index-types.html" target="_blank" rel="external nofollow noreferrer noopener">Clustered and Secondary Indexes</a> 。本文假设读者对这个，已经有了一定的认识，就不再做具体的介绍。接下来的部分，主键索引/聚簇索引 两个名称，会有一些混用，望读者知晓。</p>
+<h3 id="2PL：Two-Phase-Locking"><a href="#2PL：Two-Phase-Locking" class="headerlink" title="2PL：Two-Phase Locking"></a>2PL：Two-Phase Locking</h3><p>传统RDBMS 加锁的一个原则，就是 2PL (二阶段锁)：<a href="http://en.wikipedia.org/wiki/Two-phase_locking" target="_blank" rel="external nofollow noreferrer noopener">Two-Phase Locking</a>。相对而言，2PL 比较容易理解，说的是锁操作分为两个阶段：加锁阶段与解锁阶段，并且保证加锁阶段与解锁阶段不相交。下面，仍旧以MySQL 为例，来简单看看2PL 在MySQL 中的实现。</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian2.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian2.png" class="lazyload"></a></p>
+<p>从上图可以看出，2PL 就是将加锁/解锁分为两个完全不相交的阶段。加锁阶段：只加锁，不放锁。解锁阶段：只放锁，不加锁。</p>
+<h3 id="Isolation-Level"><a href="#Isolation-Level" class="headerlink" title="Isolation Level"></a>Isolation Level</h3><p><a href="http://en.wikipedia.org/wiki/Isolation_(database_systems)" target="_blank" rel="external nofollow noreferrer noopener"></a>隔离级别：<a href="http://en.wikipedia.org/wiki/Isolation_(database_systems)" target="_blank" rel="external nofollow noreferrer noopener">Isolation Level</a>，也是RDBMS的一个关键特性。相信对数据库有所了解的朋友，对于4 种隔离级别：Read Uncommited，Read Committed，Repeatable Read，Serializable，都有了深入的认识。本文不打算讨论数据库理论中，是如何定义这4 种隔离级别的含义的，而是跟大家介绍一下MySQL/InnoDB 是如何定义这4 种隔离级别的。</p>
+<p>MySQL/InnoDB 定义的4 种隔离级别：</p>
+<p>Ø <strong>Read Uncommited</strong></p>
+<p>可以读取未提交记录。此隔离级别，不会使用，忽略。</p>
+<p>Ø <strong>Read Committed (RC)</strong></p>
+<p>快照读忽略，本文不考虑。</p>
+<p>针对当前读，<strong>RC</strong> <strong>隔离级别保证对读取到的记录加锁**</strong> (<strong><strong>记录锁</strong></strong>)**，存在幻读现象。</p>
+<p>Ø <strong>Repeatable Read (RR)</strong></p>
+<p>快照读忽略，本文不考虑。</p>
+<p>针对当前读，<strong>RR</strong> <strong>隔离级别保证对读取到的记录加锁**</strong> (<strong><strong>记录锁</strong></strong>)<strong><strong>，同时保证对读取的范围加锁，新的满足查询条件的记录不能够插入</strong></strong> (<strong><strong>间隙锁</strong></strong>)**，不存在幻读现象。</p>
+<p>Ø <strong>Serializable</strong></p>
+<p>从MVCC 并发控制退化为基于锁的并发控制。部分快照读与当前读，所有的读操作均为当前读，读加读锁(S 锁)，写加写锁(X 锁)。</p>
+<p>Serializable 隔离级别下，读写冲突，因此并发度急剧下降，在MySQL/InnoDB 下不建议使用。</p>
+<h2 id="一条简单SQL的加锁实现分析"><a href="#一条简单SQL的加锁实现分析" class="headerlink" title="一条简单SQL的加锁实现分析"></a>一条简单SQL的加锁实现分析</h2><p>在介绍完一些背景知识之后，本文接下来将选择几个有代表性的例子，来详细分析 MySQL</p>
+<p>的加锁处理。当然，还是从最简单的例子说起。经常有朋友发给我一个 SQL，然后问我，这</p>
+<p>个SQL 加什么锁？就如同下面两条简单的 SQL，他们加什么锁？</p>
+<p>Ø <strong>SQL1**</strong>：**select * from t1 where id = 10;</p>
+<p>Ø <strong>SQL2**</strong>：**delete from t1 where id = 10;</p>
+<p>针对这个问题，该怎么回答？我能想象到的一个答案是：</p>
+<p>Ø <strong>SQL1**</strong>：**不加锁。因为MySQL是使用多版本并发控制的，读不加锁。</p>
+<p>Ø <strong>SQL2**</strong>：**对id = 10的记录加写锁(走主键索引)。</p>
+<p>这个答案对吗？说不上来。即可能是正确的，也有可能是错误的，已知条件不足，这个问题没有答案。如果让我来回答这个问题，我必须还要知道以下的一些前提，前提不同，我能给出的答案也就不同。要回答这个问题，还缺少哪些前提条件？</p>
+<p>Ø <strong>前提一：</strong>id 列是不是主键？</p>
+<p>Ø <strong>前提二：</strong>当前系统的隔离级别是什么？</p>
+<p>Ø <strong>前提三：</strong>id 列如果不是主键，那么id 列上有索引吗？</p>
+<p>Ø <strong>前提四：</strong>id 列上如果有二级索引，那么这个索引是唯一索引吗？</p>
+<p>Ø <strong>前提五：</strong>两个SQL 的执行计划是什么？索引扫描？全表扫描？</p>
+<p>没有这些前提，直接就给定一条 SQL，然后问这个SQL 会加什么锁，都是很业余的表现。而当这些问题有了明确的答案之后，给定的SQL 会加什么锁，也就一目了然。下面，我将这些问题的答案进行组合，然后按照从易到难的顺序，逐个分析每种组合下，对应的SQL 会加哪些锁？</p>
+<p><strong>注：</strong>下面的这些组合，我做了一个前提假设，也就是有索引时，执行计划一定会选择使用索引进行过滤 (索引扫描)。但实际情况会复杂很多，真正的执行计划，还是需要根据MySQL 输出的为准。</p>
+<p>Ø <strong>组合一**</strong>：**id 列是主键，RC 隔离级别</p>
+<p>Ø <strong>组合二**</strong>：**id 列是二级唯一索引，RC 隔离级别</p>
+<p>Ø <strong>组合三**</strong>：**id 列是二级非唯一索引，RC 隔离级别</p>
+<p>Ø <strong>组合四**</strong>：**id 列上没有索引，RC 隔离级别</p>
+<p>Ø <strong>组合五**</strong>：**id 列是主键，RR 隔离级别</p>
+<p>Ø <strong>组合六**</strong>：**id 列是二级唯一索引，RR 隔离级别</p>
+<p>Ø <strong>组合七**</strong>：**id 列是二级非唯一索引，RR 隔离级别</p>
+<p>Ø <strong>组合八**</strong>：**id 列上没有索引，RR 隔离级别</p>
+<p>Ø <strong>组合九**</strong>：**Serializable 隔离级别</p>
+<p>排列组合还没有列举完全，但是看起来，已经很多了。真的有必要这么复杂吗？事实上，要</p>
+<p>分析加锁，就是需要这么复杂。但是从另一个角度来说，只要你选定了一种组合，SQL 需要</p>
+<p>加哪些锁，其实也就确定了。接下来，就让我们来逐个分析这9 种组合下的SQL 加锁策略。</p>
+<p>注：在前面八种组合下，也就是 RC，RR 隔离级别下，SQL1：select 操作均不加锁，采用的</p>
+<p>是快照读，因此在下面的讨论中就忽略了，主要讨论 SQL2：delete 操作的加锁。</p>
+<h3 id="组合一：id主键-RC"><a href="#组合一：id主键-RC" class="headerlink" title="组合一：id主键+RC"></a>组合一：id主键+RC</h3><p>这个组合，是最简单，最容易分析的组合。id 是主键，Read Committed 隔离级别，给定 SQL：</p>
+<p>delete from t1 where id = 10; 只需要将主键上，id = 10 的记录加上X 锁即可。如下图所示：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian3.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian3.png" class="lazyload"></a></p>
+<p><strong>结论：</strong>id 是主键时，此SQL 只需要在id=10 这条记录上加X 锁即可。</p>
+<h3 id="组合二：id唯一索引-RC"><a href="#组合二：id唯一索引-RC" class="headerlink" title="组合二：id唯一索引+RC"></a>组合二：id唯一索引+RC</h3><p>这个组合，id 不是主键，而是一个Unique 的二级索引键值。那么在RC 隔离级别下，delete from t1 where id = 10; 需要加什么锁呢？见下图：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian4.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian4.png" class="lazyload"></a></p>
+<p>此组合中，id 是unique 索引，而主键是name 列。此时，加锁的情况由于组合一有所不同。</p>
+<p>由于id 是unique 索引，因此delete 语句会选择走id 列的索引进行where 条件的过滤，在找</p>
+<p>到 id=10 的记录后，首先会将unique 索引上的id=10 索引记录加上X 锁，同时，会根据读取到的name 列，回主键索引(聚簇索引)，然后将聚簇索引上的name = ’d’ 对应的主键索引项加X 锁。为什么聚簇索引上的记录也要加锁？试想一下，如果并发的一个 SQL，是通过主键索引来更新：update t1 set id = 100 where name = ‘d’; 此时，如果delete 语句没有将主键索引上的记录加锁，那么并发的update 就会感知不到delete 语句的存在，违背了同一记录上的更新/删除需要串行执行的约束。</p>
+<p><strong>结论</strong>：若id 列是unique 列，其上有unique 索引。那么SQL 需要加两个X 锁，一个对应于id unique 索引上的id = 10 的记录，另一把锁对应于聚簇索引上的[name=’d’,id=10]的记录。</p>
+<h3 id="组合三：id非唯一索引-RC"><a href="#组合三：id非唯一索引-RC" class="headerlink" title="组合三：id非唯一索引+RC"></a>组合三：id非唯一索引+RC</h3><p>相对于组合一、二，组合三又发生了变化，隔离级别仍旧是RC 不变，但是id 列上的约束又降低了，id 列不再唯一，只有一个普通的索引。假设delete from t1 where id = 10; 语句，仍旧选择id 列上的索引进行过滤where 条件，那么此时会持有哪些锁？同样见下图：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian5.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian5.png" class="lazyload"></a></p>
+<p>根据此图，可以看到，首先，id 列索引上，满足id = 10 查询条件的记录，均已加锁。同时，</p>
+<p>这些记录对应的主键索引上的记录也都加上了锁。与组合二唯一的区别在于，组合二最多只有一个满足等值查询的记录，而组合三会将所有满足查询条件的记录都加锁。</p>
+<p><strong>结论</strong>：若id 列上有非唯一索引，那么对应的所有满足SQL 查询条件的记录，都会被加锁。</p>
+<p>同时，这些记录在主键索引上的记录，也会被加锁。</p>
+<h3 id="组合四：id无索引-RC"><a href="#组合四：id无索引-RC" class="headerlink" title="组合四：id无索引+RC"></a>组合四：id无索引+RC</h3><p>相对于前面三个组合，这是一个比较特殊的情况。id 列上没有索引，where id = 10;这个过滤条件，没法通过索引进行过滤，那么只能走全表扫描做过滤。对应于这个组合，SQL 会加什么锁？或者是换句话说，全表扫描时，会加什么锁？这个答案也有很多：有人说会在表上加</p>
+<p>X 锁；有人说会将聚簇索引上，选择出来的 id = 10;的记录加上X 锁。那么实际情况呢？请看下图：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian6.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian6.png" class="lazyload"></a></p>
+<p>由于id 列上没有索引，因此只能走聚簇索引，进行全部扫描。从图中可以看到，满足删除条件的记录有两条，但是，聚簇索引上所有的记录，都被加上了X 锁。无论记录是否满足条件，全部被加上X 锁。既不是加表锁，也不是在满足条件的记录上加行锁。</p>
+<p>有人可能会问？为什么不是只在满足条件的记录上加锁呢？这是由于MySQL 的实现决定的。如果一个条件无法通过索引快速过滤，那么存储引擎层面就会将所有记录加锁后返回，然后由MySQL Server 层进行过滤。因此也就把所有的记录，都锁上了。</p>
+<p>注：在实际的实现中，MySQL 有一些改进，在MySQL Server 过滤条件，发现不满足后，会调用unlock_row 方法，把不满足条件的记录放锁 (违背了2PL 的约束)。这样做，保证了最后只会持有满足条件记录上的锁，但是每条记录的加锁操作还是不能省略的。</p>
+<p><strong>结论：</strong>若id 列上没有索引，SQL 会走聚簇索引的全扫描进行过滤，由于过滤是由MySQL Server 层面进行的。因此每条记录，无论是否满足条件，都会被加上X 锁。但是，为了效率考量，MySQL 做了优化，对于不满足条件的记录，会在判断后放锁，最终持有的，是满足条件的</p>
+<p>记录上的锁，但是不满足条件的记录上的加锁/放锁动作不会省略。同时，优化也违背了2PL 的约束。</p>
+<h3 id="组合五：id主键-RR"><a href="#组合五：id主键-RR" class="headerlink" title="组合五：id主键+RR"></a>组合五：id主键+RR</h3><p>上面的四个组合，都是在Read Committed 隔离级别下的加锁行为，接下来的四个组合，是</p>
+<p>在 Repeatable Read 隔离级别下的加锁行为。</p>
+<p>组合五，id 列是主键列，Repeatable Read 隔离级别，针对delete from t1 where id = 10; 这条</p>
+<p>SQL，加锁与组合一：<a href="#page6">[id主键，Read Committed]</a>一致。</p>
+<h3 id="组合六：id唯一索引-RR"><a href="#组合六：id唯一索引-RR" class="headerlink" title="组合六：id唯一索引+RR"></a>组合六：id唯一索引+RR</h3><p><a href="#page6"></a>与组合五类似，组合六的加锁，与组合二：<a href="#page6">[id唯一索引，Read Committed</a>]一致。两个X 锁，id 唯一索引满足条件的记录上一个，对应的聚簇索引上的记录一个。</p>
+<p><a href="http://hedengcheng.com/?p=771" target="_blank" rel="external nofollow noreferrer noopener"></a>注：根据博文《<a href="http://hedengcheng.com/?p=771" target="_blank" rel="external nofollow noreferrer noopener">MySQL 加锁处理分析</a>》下面的评论，id为唯一索引，针对id的并发等值删除操作，有可能会产生死锁。具体死锁的场景与分析，可参考本人的另一篇文章：《<a href="http://hedengcheng.com/?p=844" target="_blank" rel="external nofollow noreferrer noopener">一个最</a><a href="http://hedengcheng.com/?p=844" target="_blank" rel="external nofollow noreferrer noopener">不可思议的MySQL死锁分析</a>》。</p>
+<h3 id="组合七：id非唯一索引-RR"><a href="#组合七：id非唯一索引-RR" class="headerlink" title="组合七：id非唯一索引+RR"></a>组合七：id非唯一索引+RR</h3><p>还记得前面提到的MySQL 的四种隔离级别的区别吗？RC 隔离级别允许幻读，而RR 隔离级别，不允许存在幻读。但是在组合五、组合六中，加锁行为又是与RC 下的加锁行为完全一致。那么RR 隔离级别下，如何防止幻读呢？问题的答案，就在组合七中揭晓。</p>
+<p>组合七，Repeatable Read 隔离级别，id 上有一个非唯一索引，执行 delete from t1 where id =</p>
+<p>10; 假设选择id 列上的索引进行条件过滤，最后的加锁行为，是怎么样的呢？同样看下面这</p>
+<p>幅图：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian7.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian7.png" class="lazyload"></a></p>
+<p><a href="#page7"></a>此图，相对于组合三：<a href="#page7">[id列上非唯一锁，Read Committed]</a>看似相同，其实却有很大的区别。最大的区别在于，这幅图中多了一个GAP 锁，而且GAP 锁看起来也不是加在记录上的，倒像是加载两条记录之间的位置，GAP 锁有何用？</p>
+<p>其实这个多出来的GAP 锁，就是RR 隔离级别，相对于RC 隔离级别，不会出现幻读的关键。确实，GAP 锁锁住的位置，也不是记录本身，而是两条记录之间的 GAP。所谓幻读，就是同一个事务，连续做两次当前读 (例如：select * from t1 where id = 10 for update;)，那么这两次当前读返回的是完全相同的记录 (记录数量一致，记录本身也一致)，第二次的当前读，不会比第一次返回更多的记录 (幻象)。</p>
+<p>如何保证两次当前读返回一致的记录，那就需要在第一次当前读与第二次当前读之间，其他的事务不会插入新的满足条件的记录并提交。为了实现这个功能，GAP 锁应运而生。</p>
+<p>如图中所示，有哪些位置可以插入新的满足条件的项 (id = 10)，考虑到 B+树索引的有序性，</p>
+<p>满足条件的项一定是连续存放的。记录[6,c]之前，不会插入id=10 的记录；[6,c]与[10,b]间可</p>
+<p>以插入[10, aa]；[10,b]与[10,d]间，可以插入新的[10,bb],[10,c]等；[10,d]与[11,f]间可以插入满</p>
+<p>足条件的[10,e],[10,z]等；而[11,f]之后也不会插入满足条件的记录。因此，为了保证[6,c]与[10,b]</p>
+<p>间，[10,b]与[10,d]间，[10,d]与[11,f]不会插入新的满足条件的记录，MySQL 选择了用GAP 锁，将这三个GAP 给锁起来。</p>
+<p>Insert 操作，如 insert [10,aa]，首先会定位到[6,c]与[10,b]间，然后在插入前，会检查这个 GAP</p>
+<p>是否已经被锁上，如果被锁上，则Insert 不能插入记录。因此，通过第一遍的当前读，不仅将满足条件的记录锁上(X 锁)，与组合三类似。同时还是增加3 把GAP 锁，将可能插入满足条件记录的3 个GAP 给锁上，保证后续的Insert 不能插入新的id=10 的记录，也就杜绝了同一事务的第二次当前读，出现幻象的情况。</p>
+<p>有心的朋友看到这儿，可以会问：既然防止幻读，需要靠GAP 锁的保护，为什么组合五、</p>
+<p>组合六，也是RR 隔离级别，去不需要加GAP 锁呢？</p>
+<p>首先，这是一个好问题。其次，回答这个问题，也很简单。GAP 锁的目的，是为了防止同一事务的两次当前读，出现幻读的情况。而组合五，id 是主键；组合六，id 是unique 键，都能够保证唯一性。一个等值查询，最多只能返回一条记录，而且新的相同取值的记录，一定不会在新插入进来，因此也就避免了GAP 锁的使用。其实，针对此问题，还有一个更深入</p>
+<p>的问题：如果组合五、组合六下，针对 SQL：select * from t1 where id = 10 for update; 第一次查询，没有找到满足查询条件的记录，那么GAP 锁是否还能够省略？此问题留给大家思考。</p>
+<p><strong>结论：</strong>Repeatable Read 隔离级别下，id 列上有一个非唯一索引，对应 SQL：delete from t1 where id = 10; 首先，通过id 索引定位到第一条满足查询条件的记录，加记录上的X 锁，加GAP 上的GAP 锁，然后加主键聚簇索引上的记录X 锁，然后返回；然后读取下一条，重复进行。</p>
+<p>直至进行到第一条不满足条件的记录[11,f]，此时，不需要加记录X 锁，但是仍旧需要加GAP 锁，最后返回结束。</p>
+<h3 id="组合八：id无索引-RR"><a href="#组合八：id无索引-RR" class="headerlink" title="组合八：id无索引+RR"></a>组合八：id无索引+RR</h3><p>组合八，Repeatable Read 隔离级别下的最后一种情况，id 列上没有索引。此时 SQL：delete from</p>
+<p>t1 where id = 10; 没有其他的路径可以选择，只能进行全表扫描。最终的加锁情况，如下图</p>
+<p>所示：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian8.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian8.png" class="lazyload"></a></p>
+<p>如图，这是一个很恐怖的现象。首先，聚簇索引上的所有记录，都被加上了X 锁。其次，聚簇索引每条记录间的间隙(GAP)，也同时被加上了GAP 锁。这个示例表，只有6 条记录，一共需要6 个记录锁，7 个GAP 锁。试想，如果表上有1000 万条记录呢？</p>
+<p>在这种情况下，这个表上，除了不加锁的快照度，其他任何加锁的并发 SQL，均不能执行，</p>
+<p>不能更新，不能删除，不能插入，全表被锁死。</p>
+<p><a href="#page8"></a>当然，跟组合四：<a href="#page8">[id无索引, Read Committed]</a>类似，这个情况下，MySQL 也做了一些优化，就是所谓的 semi-consistent read。semi-consistent read 开启的情况下，对于不满足查询条件的记录，MySQL 会提前放锁。针对上面的这个用例，就是除了记录[d,10]，[g,10]之外，所有的记录锁都会被释放，同时不加GAP 锁。semi-consistent read 如何触发：要么是read committed 隔 离 级 别 ； 要 么 是Repeatable Read 隔 离 级 别 ， 但 是 设 置 了<a href="http://dev.mysql.com/doc/refman/5.5/en/innodb-parameters.html#sysvar_innodb_locks_unsafe_for_binlog" target="_blank" rel="external nofollow noreferrer noopener">innodb_locks_unsafe_for_binlog</a>参数。更详细的关于semi-consistent read的介绍，可参考我<a href="http://hedengcheng.com/?p=220" target="_blank" rel="external nofollow noreferrer noopener"></a>之前的一篇博客：<a href="http://hedengcheng.com/?p=220" target="_blank" rel="external nofollow noreferrer noopener">MySQL+InnoDB semi-consitent read 原理及实现分析</a>。</p>
+<p><strong>结论：</strong>在Repeatable Read 隔离级别下，如果进行全表扫描的当前读，那么会锁上表中的所有记录，同时会锁上聚簇索引内的所有 GAP，杜绝所有的并发 更新/删除/插入 操作。当然，也可以通过触发 semi-consistent read，来缓解加锁开销与并发影响，但是semi-consistent read 本身也会带来其他问题，不建议使用。</p>
+<h3 id="组合九：Serializable"><a href="#组合九：Serializable" class="headerlink" title="组合九：Serializable"></a>组合九：Serializable</h3><p>针对前面提到的简单的 SQL，最后一个情况：Serializable 隔离级别。对于 SQL2：delete from t1 where id = 10; 来说，Serializable 隔离级别与Repeatable Read 隔离级别完全一致，因此不做介绍。</p>
+<p>Serializable 隔离级别，影响的是 SQL1：select * from t1 where id = 10; 这条 SQL，在 RC，RR隔离级别下，都是快照读，不加锁。但是在Serializable 隔离级别，SQL1 会加读锁，也就是说快照读不复存在，MVCC 并发控制降级为 Lock-Based CC。</p>
+<p><strong>结论：</strong>在MySQL/InnoDB 中，所谓的读不加锁，并不适用于所有的情况，而是隔离级别相关的。Serializable 隔离级别，读不加锁就不再成立，所有的读操作，都是当前读。</p>
+<h2 id="一条复杂的-SQL"><a href="#一条复杂的-SQL" class="headerlink" title="一条复杂的 SQL"></a>一条复杂的 SQL</h2><p>写到这里，其实MySQL 的加锁实现也已经介绍的八八九九。只要将本文上面的分析思路，</p>
+<p>大部分的 SQL，都能分析出其会加哪些锁。而这里，再来看一个稍微复杂点的 SQL，用于说</p>
+<p>明MySQL 加锁的另外一个逻辑。SQL 用例如下：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian9.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian9.png" class="lazyload"></a></p>
+<p>如图中的 SQL，会加什么锁？假定在Repeatable Read 隔离级别下(Read Committed 隔离级别下的加锁情况，留给读者分析。)，同时，假设SQL 走的是idx_t1_pu 索引。</p>
+<p>在详细分析这条SQL 的加锁情况前，还需要有一个知识储备，那就是一个SQL 中的where <a href="http://hedengcheng.com/?p=577" target="_blank" rel="external nofollow noreferrer noopener"></a>条件如何拆分？具体的介绍，建议阅读我之前的一篇文章：<a href="http://hedengcheng.com/?p=577" target="_blank" rel="external nofollow noreferrer noopener">SQL 中的where 条件，在数据库</a><a href="http://hedengcheng.com/?p=577" target="_blank" rel="external nofollow noreferrer noopener">中提取与应用浅析</a>。在这里，我直接给出分析后的结果：</p>
+<p>Ø <strong>Index key**</strong>：**pubtime &gt; 1 and puptime &lt; 20。此条件，用于确定SQL在idx_t1_pu索引上的查询范围。</p>
+<p>Ø <strong>Index Filter**</strong>：**userid =‘hdc’。此条件，可以在idx_t1_pu索引上进行过滤，但不属于IndexKey。</p>
+<p>Ø <strong>Table Filter**</strong>：**comment is not NULL。此条件，在idx_t1_pu索引上无法过滤，只能在聚簇索引上过滤。</p>
+<p>在分析出SQL where 条件的构成之后，再来看看这条SQL 的加锁情况(RR 隔离级别)，如下图所示：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian10.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian10.png" class="lazyload"></a></p>
+<p>从图中可以看出，在Repeatable Read 隔离级别下，由Index Key 所确定的范围，被加上了</p>
+<p>GAP 锁；Index Filter 锁给定的条件 (userid = ‘hdc’)何时过滤，视MySQL 的版本而定，在MySQL 5.6 版本之前，不支持<a href="http://dev.mysql.com/doc/refman/5.6/en/index-condition-pushdown-optimization.html" target="_blank" rel="external nofollow noreferrer noopener">Index Condition Pushdown</a>(ICP)，因此Index Filter 在MySQL Server 层过滤，在5.6 后支持了 Index Condition Pushdown，则在index 上过滤。若不支持 ICP，不满足Index Filter 的记录，也需要加上记录X 锁，若支持 ICP，则不满足Index Filter 的记录，无需</p>
+<p>加记录X 锁 (图中，用红色箭头标出的X 锁，是否要加，视是否支持ICP 而定)；而Table Filter 对应的过滤条件，则在聚簇索引中读取后，在MySQL Server 层面过滤，因此聚簇索引上也</p>
+<p>需要X 锁。最后，选取出了一条满足条件的记录[8,hdc,d,5,good]，但是加锁的数量，要远远大于满足条件的记录数量。</p>
+<p><strong>结论：</strong>在Repeatable Read 隔离级别下，针对一个复杂的 SQL，首先需要提取其where 条件。Index Key 确定的范围，需要加上GAP 锁；Index Filter 过滤条件，视MySQL 版本是否支持 ICP，若支持 ICP，则不满足Index Filter 的记录，不加X 锁，否则需要X 锁；Table Filter 过滤条件，无论是否满足，都需要加X 锁。</p>
+<h2 id="死锁原理与分析"><a href="#死锁原理与分析" class="headerlink" title="死锁原理与分析"></a>死锁原理与分析</h2><p>本文前面的部分，基本上已经涵盖了MySQL/InnoDB 所有的加锁规则。深入理解MySQL 如何加锁，有两个比较重要的作用：</p>
+<p>Ø 可以根据MySQL 的加锁规则，写出不会发生死锁的 SQL；</p>
+<p>Ø 可以根据MySQL 的加锁规则，定位出线上产生死锁的原因；</p>
+<p>下面，来看看两个死锁的例子 (一个是两个Session 的两条SQL 产生死锁；另一个是两个</p>
+<p>Session 的一条 SQL，产生死锁)：</p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian11.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian11.png" class="lazyload"></a></p>
+<p><a href="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian12.png" rel="external nofollow noreferrer" data-fancybox="group" data-caption="在这里插入图片描述" class="fancybox"><img src="/img/loading.gif" alt="在这里插入图片描述" title="在这里插入图片描述" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/articelImag/mysqllock/tupian12.png" class="lazyload"></a></p>
+<p>上面的两个死锁用例。第一个非常好理解，也是最常见的死锁，每个事务执行两条 SQL，分别持有了一把锁，然后加另一把锁，产生死锁。</p>
+<p>第二个用例，虽然每个Session 都只有一条语句，仍旧会产生死锁。要分析这个死锁，首先必须用到本文前面提到的MySQL 加锁的规则。针对 Session 1，从name 索引出发，读到的[hdc, 1]，[hdc, 6]均满足条件，不仅会加name 索引上的记录X 锁，而且会加聚簇索引上的记录 X</p>
+<p>锁，加锁顺序为先[1,hdc,100]，后[6,hdc,10]。而 Session 2，从pubtime 索引出发，[10,6],[100,1]均满足过滤条件，同样也会加聚簇索引上的记录X 锁，加锁顺序为[6,hdc,10]，后[1,hdc,100]。</p>
+<p>发现没有，跟Session 1 的加锁顺序正好相反，如果两个Session 恰好都持有了第一把锁，请求加第二把锁，死锁就发生了。</p>
+<p><strong>结论：</strong>死锁的发生与否，并不在于事务中有多少条SQL 语句，<strong>死锁的关键在于</strong>：两个(或以</p>
+<p>上)的Session <strong>加锁的顺序</strong>不一致。而使用本文上面提到的，分析MySQL 每条SQL 语句的加锁规则，分析出每条语句的加锁顺序，然后检查多个并发SQL 间是否存在以相反的顺序加锁的情况，就可以分析出各种潜在的死锁情况，也可以分析出线上死锁发生的原因。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>写到这儿，本文也告一段落，做一个简单的总结，要做的完全掌握MySQL/InnoDB 的加锁规则，甚至是其他任何数据库的加锁规则，需要具备以下的一些知识点：</p>
+<p>Ø 了解数据库的一些基本理论知识：数据的存储格式 (堆组织表vs 聚簇索引表)；并发控制协议 (MVCC vs Lock-Based CC)；Two-Phase Locking；数据库的隔离级别定义 (Isolation Level)；</p>
+<p>Ø 了解SQL 本身的执行计划 (主键扫描vs 唯一键扫描vs 范围扫描vs 全表扫描)；</p>
+<p>Ø 了解数据库本身的一些实现细节( 过滤条件提取；Index Condition Pushdown ； Semi-Consistent Read)；</p>
+<p>Ø 了解死锁产生的原因及分析的方法 (加锁顺序不一致；分析每个SQL 的加锁顺序)</p>
+<p>有了这些知识点，再加上适当的实战经验，全面掌控MySQL/InnoDB 的加锁规则，当不在话下。</p>
+</div></article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:1315402725@qq.com" rel="external nofollow noreferrer">爱笑的k11</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://1315402725.github.io/posts/1702c2b8/">http://1315402725.github.io/posts/1702c2b8/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://1315402725.github.io">爱笑的k11</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/mysql/">mysql    </a><a class="post-meta__tags" href="/tags/%E9%94%81/">锁    </a></div><div class="post_share"><div class="social-share" data-image="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/Photo/photo.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js@1.0.16/dist/css/share.min.css"><script src="https://cdn.jsdelivr.net/npm/social-share.js@1.0.16/dist/js/social-share.min.js"></script></div></div><div class="post-reward"><a class="reward-button"><i class="fa fa-qrcode"></i> 打赏<div class="reward-main"><ul class="reward-all"><li class="reward-item"><img class="lazyload post-qr-code__img" src="/image/wechat.jpg"><div class="post-qr-code__desc">微信</div></li><li class="reward-item"><img class="lazyload post-qr-code__img" src="/image/alipay.jpg"><div class="post-qr-code__desc">支付寶</div></li></ul></div></a></div><div class="post-ad"><ins class="adsbygoogle" style="display:block " data-ad-format="fluid" data-ad-layout-key="-fb+5w+4e-db+86" data-ad-client="ca-pub-2526156577654907" data-ad-slot="5978969231"></ins><script>(adsbygoogle=window.adsbygoogle||[]).push({})</script></div><nav class="pagination_post" id="pagination"><div class="next-post pull-full"><a href="/posts/f648507a/"><img class="next_cover lazyload" data-src="https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/cover/40.jpg" onerror="onerror=null;src='/img/404.jpg'"><div class="label">下一篇</div><div class="next_info"><span>从java的角度看reactor主从线程模型</span></div></a></div></nav><hr><div id="post-comment"><div class="comment_headling"><i class="fa fa-comments fa-fw" aria-hidden="true"></i><span> 评论</span></div><div class="vcomment" id="vcomment"></div><script src="https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js"></script><script>var notify = false == true ? true : false;
+var verify = false == true ? true : false;
+var GUEST_INFO = ['nick','mail','link'];
+var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+  return GUEST_INFO.indexOf(item) > -1
+});
+guest_info = guest_info.length == 0 ? GUEST_INFO :guest_info;
+
+window.valine = new Valine({
+  el:'#vcomment',
+  notify:notify,
+  verify:verify,
+  appId:'OynV46YzcLdsYYtUe6xsQq66-gzGzoHsz',
+  appKey:'5GXgAQLz81YXfD7Qtis1g5NK',
+  placeholder:'記得留下你的昵稱和郵箱....可以快速收到回復',
+  avatar:'monsterid',
+  guest_info:guest_info,
+  pageSize:'10',
+  lang:'en',
+  recordIP: true
+});</script></div></div></div><footer id="footer" style="background-image: url(https://cdn.jsdelivr.net/gh/1315402725/CDN@latest/Photo/photo.jpg)" data-type="photo"><div id="footer-wrap"><div class="copyright">&copy;2018 - 2020 By 爱笑的k11</div><div class="framework-info"><span>驱动 </span><a href="http://hexo.io" rel="external nofollow noreferrer"><span>Hexo</span></a><span class="footer-separator">|</span><span>主题 </span><a href="https://github.com/jerryc127/hexo-theme-butterfly" rel="external nofollow noreferrer"><span>Butterfly</span></a></div></div></footer></div><section class="rightside" id="rightside"><div id="rightside-config-hide"><i class="fa fa-book" id="readmode" title="阅读模式"></i><i class="fa fa-plus" id="font_plus" title="放大字体"></i><i class="fa fa-minus" id="font_minus" title="缩小字体"></i><a class="translate_chn_to_cht" id="translateLink" href="javascript:translatePage();" rel="external nofollow noreferrer" title="简繁转换" target="_self">簡</a><i class="darkmode fa fa-moon-o" id="darkmode" title="夜间模式"></i></div><div id="rightside-config-show"><div id="rightside_config" title="设置"><i class="fa fa-cog" aria-hidden="true"></i></div><a id="to_comment" href="#post-comment" title="直达评论"><i class="scroll_to_comment fa fa-comments">  </i></a><i class="fa fa-list-ul close" id="mobile-toc-button" title="目录" aria-hidden="true"></i><i class="fa fa-arrow-up" id="go-up" title="回到顶部" aria-hidden="true"></i></div></section><script src="https://cdn.jsdelivr.net/gh/1315402725/1315402725.github.io@latest/js/jerryc.js"></script><div class="search-dialog" id="algolia-search"><div class="search-dialog__title" id="algolia-search-title">Algolia</div><div id="algolia-input-panel"><div id="algolia-search-input"></div></div><hr><div id="algolia-search-results"><div id="algolia-hits"></div><div id="algolia-pagination"></div><div id="algolia-stats"></div></div><span class="search-close-button"><i class="fa fa-times"></i></span></div><div class="search-mask"></div><script>"serviceWorker"in navigator&&navigator.serviceWorker.register("/sw.js").then(e=>{e.addEventListener("updatefound",()=>{newWorker=e.installing,newWorker.addEventListener("statechange",()=>{if("installed"===newWorker.state&&navigator.serviceWorker.controller){var e="light"===document.documentElement.getAttribute("data-theme")?GLOBAL_CONFIG.Snackbar.bgLight:GLOBAL_CONFIG.Snackbar.bgDark,t=GLOBAL_CONFIG.Snackbar.position;Snackbar.show({text:"已更新最新版本",backgroundColor:e,duration:3e3,pos:t,actionText:"點擊刷新",actionTextColor:"#fff",onActionClick:function(e){location.reload()}})}})})});</script></body></html>
